@@ -1,0 +1,168 @@
+---
+title: "Coursera's Reproducible Search: Peer Assessment 2"
+author: "Jorge Mendoza"
+date: "01/29/2016"
+output: html_document
+---
+
+### Introduction
+
+##### Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+##### This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+### Summary
+
+##### This study is based on the U.S. National Oceanic and Atmospheric Administration's (NOAA) Storm data base. Mainly comparing the outcome regarding storms and severe weather contidons such as tornados, floods, heat, wildfire, etc. The data segment starts on 1950 up to 2007
+
+##### There will be 3 areas of study, injuries per event, fatalities per event and property damage per event
+
+### Data Processing
+
+##### - Load required libraries to proccess data and Graphs
+```` {r}
+library(ggplot2)
+library(imputeMissings)
+library(utils)
+library(plyr)
+library(grid)
+````
+
+##### - Set current working directory
+```` {r}
+setwd("~/dataScience/Course V/Assigment-2/")
+````
+##### - Download the studies's data located at "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+
+```` {r}
+if(!file.exists('./data/repdata-data-StormData.csv')){
+  url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+  download.file(url=url, destfile='./data/repdata-data-StormData.csv.bz2', method='curl')
+  filePath <- "./data/repdata-data-StormData.csv.bz2"
+  destPath <- "./data/repdata-data-StormData.csv"
+  bunzip2(filePath,destPath,overwrite=TRUE, remove=FALSE)
+}
+````
+
+##### - Load the data and remove the additional columns that won't be usefull for this study
+
+```` {r}
+csvStromData = read.csv("./data/repdata-data-StormData.csv", sep = ",")
+requiredColNames <- c("BGN_DATE", "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")
+dataSource <- csvStromData[, requiredColNames]
+
+````
+
+##### - Let's process and add an additional column with just the year of the event registrated in order to be able to sum events by category and year
+
+```` {r}
+dataSource$YEAR <- as.numeric(format(as.Date(dataSource$BGN_DATE, format = "%m/%d/%Y %H:%M:%S"), "%Y"))
+````
+
+##### - sortUtil is a function that will be used to obtain the top events and it's cumulative associated data (ex. Injuries, Property damage, etc)
+
+
+```` {r}
+
+sortUtil <- function(fieldName, top, dataset) {
+  index <- which(colnames(dataset) == fieldName)
+  field <- aggregate(dataset[, index], by = list(dataset$EVTYPE), FUN = "sum")
+  names(field) <- c("EVTYPE", fieldName)
+  field <- arrange(field, field[, 2], decreasing = T)
+  field <- head(field, n = top)
+  field <- within(field, EVTYPE <- factor(x = EVTYPE, levels = field$EVTYPE))
+  return(field)
+}
+````
+
+##### - unitsConververUtil is a function that will be used to calculate the total amount of property damage or crop damage, since the data is express in B,M,K,H where each one refers to Billions, Millions, Thousans or hundreds
+
+```` {r}
+unitsConververUtil <- function(dataset, fieldName, newFieldName) {
+  totalLen <- dim(dataset)[2]
+  index <- which(colnames(dataset) == fieldName)
+  dataset[, index] <- as.character(dataset[, index])
+  logic <- !is.na(toupper(dataset[, index]))
+  dataset[logic & toupper(dataset[, index]) == "B", index] <- "9"
+  dataset[logic & toupper(dataset[, index]) == "M", index] <- "6"
+  dataset[logic & toupper(dataset[, index]) == "K", index] <- "3"
+  dataset[logic & toupper(dataset[, index]) == "H", index] <- "2"
+  dataset[logic & toupper(dataset[, index]) == "", index] <- "0"
+  dataset[, index] <- as.numeric(dataset[, index])
+  dataset[is.na(dataset[, index]), index] <- 0
+  dataset <- cbind(dataset, dataset[, index - 1] * 10^dataset[, index])
+  names(dataset)[totalLen + 1] <- newFieldName
+  return(dataset)
+}
+````
+##### - Using the sortUtil function we process the 20 heavy weather events and its respective cumulative amount of fatalities and injuries
+
+```` {r}
+fatalities <- sortUtil("FATALITIES", 20, dataSource)
+injuries <- sortUtil("INJURIES", 20, dataSource)
+````
+##### - Using the unitsConververUtil function we add an additional column to the dataSource with the full amount associated with Property damage and Crop's damage
+```` {r}
+dataSource <- unitsConververUtil(dataSource, "PROPDMGEXP", "PROPERTYDAMAGE")
+dataSource <- unitsConververUtil(dataSource, "CROPDMGEXP", "CROPDAMAGE")
+````
+##### - Let's print the column names with the new aggreates
+```` {r}
+
+names(dataSource)
+options(scipen=999)
+
+````
+
+##### - Using the sortUtil function we calculate the top 20 heavy weather events and it's property damage and crop's damage
+
+```` {r}
+property <- sortUtil("PROPERTYDAMAGE", 20, dataSource)
+crop <- sortUtil("CROPDAMAGE", 20, dataSource)
+````
+##### - Let's create the plots associated with :
+* Fatalities
+* Property damage
+* Injuries
+* Crop's damage
+
+```` {r}
+ggplot(data=fatalities, aes(x=EVTYPE, y=FATALITIES)) + 
+  geom_bar(stat="identity") + xlab("Event type") + ylab("Total fatalities") + 
+  ggtitle("Fatalities By Event Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data=injuries, aes(x=EVTYPE, y=INJURIES)) + 
+  geom_bar(stat="identity") + xlab("Event type") + ylab("Total injuries") + 
+  ggtitle("injuries By Event Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data=property, aes(x=EVTYPE, y=PROPERTYDAMAGE)) + 
+  geom_bar(stat="identity") + xlab("Event type") + ylab("Total Property damage") + 
+  ggtitle("Property damage By Event Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot(data=crop, aes(x=EVTYPE, y=CROPDAMAGE)) + 
+  geom_bar(stat="identity") + xlab("Event type") + ylab("Total Crop's Damage") + 
+  ggtitle("Crop's Damage By Event Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+````
+
+### Results
+
+##### - As shown in the previous Graphs the event's with most human losses are:
+* Tornados
+* Massive Heat
+
+##### - The event's with most human injuries is by far:
+* Tornados
+
+##### - And the event's resulting in higher lost on properties are:
+* Floods
+* Hurricanes and Typhoon
+
+##### - Also there is a third kind of property damage (Crop's damage) that is affected by a different kind of weather event:
+* Drougth
+
+
+

@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1485776353884.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "FC59D613",
+    "lastKnownWriteTime" : 4346419456,
+    "last_content_update" : 1485776353884,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "mveo3cuso5",
+        "caption" : "csvStromData",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=csvStromData&cache_key=mveo3cuso5",
+        "displayedObservations" : 902297,
+        "environment" : "",
+        "object" : "csvStromData",
+        "totalObservations" : 902297,
+        "variables" : 37
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
